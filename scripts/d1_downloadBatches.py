@@ -1,5 +1,5 @@
 '''
-This file calls the script download_batch.py for each batch of images from batch_from to batch_to (inclusive).
+This file calls the script download_batch.py for each batch ofo images from batch_from t batch_to (inclusive).
 See that scripts for details on arguments.
 
 Author:        Felipe Jordan

@@ -33,7 +33,7 @@ Last modified: 04/08/2020
 import ee
 
 # Initializa ee library
-ee.Initialize()
+ee.Initialize(project="ee-felipeguerrero")
 
 ########################## Helper functions and main class ---------
 def keepClear(region,sat):
