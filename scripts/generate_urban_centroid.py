@@ -13,7 +13,7 @@ from shapely.geometry import Point
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-region', '-region', type=int, help='Region number')
-parser.set_defaults(region=13)
+# parser.set_defaults(region=13)
 args = parser.parse_args()
 
 # Load urban village data

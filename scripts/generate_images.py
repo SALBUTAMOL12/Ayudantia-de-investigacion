@@ -8,20 +8,20 @@ from PIL import Image
 import sys
 
 def makeName(s):
-    return s.strip().lower().replace(' ','_')
+    return s.strip().lower().replace(' ', '_')
 
 class villageImage():
-    def __init__(self,village,coords,images_dir='images',villages_loc_path='villages_batch.csv'):
-        self.coords  = [float(x) for x in coords]
-        images_dir   = os.path.join(os.pardir,'local',images_dir)
-        villages_loc = pd.read_csv(os.path.join(os.pardir,'local',villages_loc_path),dtype=str)
-        batch    = villages_loc.loc[villages_loc.village.eq(makeName(village)),'batch'].tolist()[0]
-        self.msp_path = os.path.join(images_dir,'BMSP_{0}.tif'.format(batch))
-        pan_path = os.path.join(images_dir,'BPAN_{0}.tif'.format(batch))
-        self.pan=False
+    def __init__(self, village, coords, images_dir='images', villages_loc_path='villages_batch.csv'):
+        self.coords = [float(x) for x in coords]
+        images_dir = os.path.join(os.pardir, 'local', images_dir)
+        villages_loc = pd.read_csv(os.path.join(os.pardir, 'local', villages_loc_path),dtype=str)
+        batch = villages_loc.loc[villages_loc.village.eq(makeName(village)), 'batch'].tolist()[0]
+        self.msp_path = os.path.join(images_dir, 'BMSP_{0}.tif'.format(batch))
+        pan_path = os.path.join(images_dir, 'BPAN_{0}.tif'.format(batch))
+        self.pan = False
         if os.path.exists(pan_path):
-            self.pan=True
-            self.pan_path=pan_path
+            self.pan = True
+            self.pan_path = pan_path
 
     def multispectral(self,dim):
         return One(self.coords,self.msp_path,dim)
@@ -77,7 +77,8 @@ class Combine():
         self.transform = pan.transform
 
     def pyramid(self):
-        pyramid = tuple(pyramid_gaussian(self.pan_array[0,:,:],max_layer=2,downscale=2,multichannel=False))
+        #! test
+        pyramid = tuple(pyramid_gaussian(self.pan_array[0,:,:],max_layer=2,downscale=2,channel_axis=None))
         noise = np.zeros(self.pan_array.shape[1:])
         for i,p in enumerate(pyramid):
             if i==0:
@@ -126,7 +127,8 @@ vil_id = []
 
 for line in f :
     line = line.strip()
-    vil_id.append(line.split('.')[0])
+    #! test
+    vil_id.append(line)
     
 villages_batch=pd.read_csv('../local/villages_batch.csv', dtype=str,index_col=0,delimiter=',')
 
@@ -134,8 +136,8 @@ for i in range(len(vil_id)):
     x = villageImage(str(int(vil_id[i])),[villages_batch['lon'][int(vil_id[i])],villages_batch['lat'][int(vil_id[i])]])
     com = x.combine(224)
     com.stack()
-    com.pansharpen([0,1,2])
-    com.to_tif('../local/images_tif_2001/' + vil_id[i]  +'.tif','pansharpen',[0,1,2])
+    com.pansharpen([3,2,1])
+    com.to_tif('../local/images_tif_2001/' + vil_id[i]  +'.tif','pansharpen',[3,2,1])
     
 for i in range(len(vil_id)):
     im = Image.open('../local/images_tif_2001/' + vil_id[i]  +'.tif')

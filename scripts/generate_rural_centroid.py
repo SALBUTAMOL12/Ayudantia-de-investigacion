@@ -42,7 +42,7 @@ for comuna in names_comunas:
     # convert the centroid csr to wgs84
     rural_village_data_comuna['centroid'] = rural_village_data_comuna['centroid'].to_crs(4326)
 
-    rural_village_data_comuna["row"] = rural_village_data_comuna.apply(lambda x: f"{cut_number}0{x['CODIGO_ENT']},{x['centroid'].x},{x['centroid'].y}", axis=1)
+    rural_village_data_comuna["row"] = rural_village_data_comuna.apply(lambda x: f"{cut_number}0{x['CODIGO_LOC']}{x['CODIGO_ENT']},{x['centroid'].x},{x['centroid'].y}", axis=1)
 
     # save the row in a common csv file
     file_path = os.path.join(os.pardir, "local", "centroid", "villages.csv")

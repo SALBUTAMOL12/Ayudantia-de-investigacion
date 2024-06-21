@@ -307,6 +307,8 @@ def main():
         sleep(1)
     time_spc = np.round(time()-start,5)
     start= time()
+    #! test
+    print(export_image_toDrive.status())
     print('{0} sec'.format(time_spc))
 
     time_pan=0
