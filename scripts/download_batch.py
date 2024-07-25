@@ -48,24 +48,31 @@ def keepClear(region,sat):
     '''
     def keepClear_child(image):
         # Select FMASK QA band and select bits associated to clouds and clouds cover
-        im  = ee.Image(image)
-        qa  = im.select('pixel_qa')
-        qa_clouds            = extractQABits(qa,6,7)
-        qa_cloudsShadows     = extractQABits(qa,3,3)
+        im = ee.Image(image)
+        qa = im.select('QA_PIXEL')
+
+        qa_clouds = extractQABits(qa, 8, 9)
+
+        qa_cloudsShadows = extractQABits(qa, 10, 11)
+
         # Select Saturation QA band and select bite associated to saturation
-        qa2 = im.select('radsat_qa')
-        qa_saturation        = extractQABits(qa2,0,0)
+        qa2 = im.select('QA_RADSAT')
+        if sat == 'L8':
+            qa_saturation = extractQABits(qa2, 1, 3)
+        else:
+            qa_saturation = extractQABits(qa2, 0, 2)
         # Create mask where valid pixels have low confidence of clound and clound shadow and are not saturated
-        mask                 = qa_clouds.lte(1).And(qa_cloudsShadows.eq(0)).And(qa_saturation.eq(0))
-        if sat=='L8':
+        mask = qa_clouds.lte(1).And(qa_cloudsShadows.lte(1)).And(qa_saturation.eq(0))
+
+        if sat =='L8':
             # Cirrus clounds and terrain oclussion in landsat 8
-            qa_cirrus  = extractQABits(qa,8,9)
-            qa_terrain = extractQABits(qa,10,10)
-            mask       = mask.And(qa_cirrus.lte(1)).And(qa_terrain.eq(0))
-        # Claculate fraction of valid pixels in the region and return image with QI property with fraction of valid pixels
-        valid = mask.reduceRegion(ee.Reducer.sum(),region).get('pixel_qa')
-        tot   = mask.reduceRegion(ee.Reducer.count(),region).get('pixel_qa')
-        return im.updateMask(mask).copyProperties(im).set({'QI':ee.Number(valid).divide(tot)})
+            qa_cirrus = extractQABits(qa, 14, 15)
+            qa_terrain = extractQABits(qa2, 11, 11)
+            mask = mask.And(qa_cirrus.lte(1)).And(qa_terrain.eq(0))
+        # Calculate fraction of valid pixels in the region and return image with QI property with fraction of valid pixels
+        valid = mask.reduceRegion(ee.Reducer.sum(), region).get('QA_PIXEL')
+        tot = mask.reduceRegion(ee.Reducer.count(), region).get('QA_PIXEL')
+        return im.updateMask(mask).copyProperties(im).set({'QI': ee.Number(valid).divide(tot)})
     return keepClear_child
 
 def extractQABits(qaBand, bitStart, bitEnd):
@@ -148,19 +155,23 @@ def makeName(s):
 # Main class that create image from sensor
 class downloadImagery():
     def __init__(self,folder,year,sensor,size,topocorrection=True):
-        collections = {'L5':{'SR':['LANDSAT/LT05/C01/T1_SR','LANDSAT/LT05/C01/T2_SR'],'TOA':['LANDSAT/LT05/C01/T1_TOA','LANDSAT/LT05/C01/T2_TOA']},
-                       'L7':{'SR':['LANDSAT/LE07/C01/T1_SR','LANDSAT/LE07/C01/T2_SR'],'TOA':['LANDSAT/LE07/C01/T1_TOA','LANDSAT/LE07/C01/T2_TOA']},
-                       'L8':{'SR':['LANDSAT/LC08/C01/T1_SR','LANDSAT/LC08/C01/T2_SR'],'TOA':['LANDSAT/LC08/C01/T1_TOA','LANDSAT/LC08/C01/T2_TOA']},
+
+        # ! changes: 'LANDSAT/LC08/C02/T2_SR' to 'LANDSAT/LC08/C02/T2_L2'
+        # ! changes: 'LANDSAT/LC08/C02/T1_SR' to 'LANDSAT/LC08/C02/T1_L2'
+
+        collections = {'L5':{'SR':['LANDSAT/LT05/C02/T1_SR','LANDSAT/LT05/C02/T2_SR'],'TOA':['LANDSAT/LT05/C02/T1_TOA','LANDSAT/LT05/C02/T2_TOA']},
+                       'L7':{'SR':['LANDSAT/LE07/C02/T1_L2','LANDSAT/LE07/C02/T2_L2'],'TOA':['LANDSAT/LE07/C02/T1_TOA','LANDSAT/LE07/C02/T2_TOA']},
+                       'L8':{'SR':['LANDSAT/LC08/C02/T1_L2','LANDSAT/LC08/C02/T2_L2'],'TOA':['LANDSAT/LC08/C02/T1_TOA','LANDSAT/LC08/C02/T2_TOA']},
                        }
-        final_bands        = {'L5':[['B1','B2','B3','B4','B5','B6','B7'],
+        final_bands        = {'L5':[['SR_B1','SR_B2','SR_B3','SR_B4'],
                                     [],
-                                    ['B4','B3']],
-                              'L7':[['B1','B2','B3','B4','B5','B6','B7'],
+                                    ['SR_B4','SR_B3']],
+                              'L7':[['SR_B1','SR_B2','SR_B3','SR_B4'],
                                     ['B8'],
-                                    ['B4','B3']],
-                              'L8':[['B1','B2','B3','B4','B5','B6','B7','B10','B11'],
+                                    ['SR_B4','SR_B3']],
+                              'L8':[['SR_B2','SR_B3','SR_B4','SR_B5'],
                                     ['B8'],
-                                    ['B5','B4']]}
+                                    ['SR_B5','SR_B4']]}
         self.folder  = folder
         self.year    = year
         self.sensor  = sensor
@@ -202,8 +213,10 @@ class downloadImagery():
 
         def addTOA(img):
             ''' add panchromatic band from TOA collection '''
-            pan = toa_collection().filter(ee.Filter.eq('LANDSAT_PRODUCT_ID',img.get('LANDSAT_ID'))).select(['B8']).first()
-            return ee.Algorithms.If(pan,img.addBands(pan),pan)
+            toa_coll = toa_collection()
+            # print("TOA collection size:", toa_coll.size().getInfo())  # ! Debug print
+            pan = toa_coll.filter(ee.Filter.eq('LANDSAT_PRODUCT_ID',img.get('LANDSAT_ID'))).select(['B8']).first()
+            return ee.Algorithms.If(pan, img.addBands(pan), img) 
         #######################################
 
         # Collect SR imagery
@@ -212,14 +225,22 @@ class downloadImagery():
             collection = collection.merge(ee.ImageCollection(c))
         collection = collection.filterDate('{0}-01-01'.format(self.year),
                                            '{0}-12-31'.format(self.year)).filterBounds(self.region)
+        print("Filtered collection:", collection.size().getInfo())  # ! Debug print
         # Add TOA bands
+
         if self.pan:
-            collection = collection.map(addTOA,True)
+            collection = collection.map(addTOA, True)
+        print("Collection after addTOA:", collection.size().getInfo())  # ! Debug print
 
         # Keep only imagery where more than 95% of pixels within region of interest are valid
         collection = collection.map(keepClear(self.region,self.sensor)).filter(ee.Filter.gte('QI',0.95))
+
+        # Inspect debug properties
+
+        print("Collection after keepClear and filter:", collection.size().getInfo())  # ! Debug print
         # Save length of collection
         self.collection_length=collection.size().getInfo()
+        print(f"Collection length: {self.collection_length}")  # ! Debug prin
         return collection
 
     def prepare_batch(self,coords):
@@ -231,26 +252,55 @@ class downloadImagery():
         self.region = ee.FeatureCollection([ee.Feature(self.coords_to_box(c)) for c in coords]).union().geometry()
 
         # Collect imagery within region of interest and sort on average NDVI (highest to lowest)
-        image  = self.collect_images().map(addNDVI(self.region,self.ndvi_bands)).sort('NDVI',False)
-
+        image = self.collect_images().map(addNDVI(self.region, self.ndvi_bands)).sort('NDVI', False)
+        print("Number of images after NDVI and sorting:", image.size().getInfo())  # Debug print
         # Spectral bands: Topographic correction of option selected and reducer (first not null). Save to instance.
         image_spec = image.select(self.final_spec_bands)
-        if self.topocorrection:
-            image_spec     = image_spec.map(TerrainCorrection(self.scale,len(self.final_spec_bands)))
-        image_spec = image_spec.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255/10000)).toUint8()
-        self.batch_spec = ee.Image(image_spec).clip(self.region).rename(*[b for b in self.final_spec_bands])
-
-        # If pansharpen, same proces for panchromatic band
-        if self.pan:
-            image_pan = image.select(self.final_pan_bands)
+        print("Image spec before multiply:", image_spec.size().getInfo())  # ! Debug print
+        if self.sensor == "L8":
             if self.topocorrection:
-                image_pan  = image_pan.map(TerrainCorrection(self.scale_adj,len(self.final_pan_bands)))
-                image_pan  = image_pan.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255)).toUint8()
-                self.batch_pan = ee.Image(image_pan).clip(self.region).rename(*[b for b in self.final_pan_bands])
-        else:
-            self.batch_pan = None
+                image_spec = image_spec.map(TerrainCorrection(self.scale,
+                                                              len(self.final_spec_bands)))
+                    # Imprimir información de cada imagen en image_spec
+            image_list = image_spec.toList(image_spec.size())
+            for i in range(image_spec.size().getInfo()):
+                img = ee.Image(image_list.get(i))
+                print(f"Image {i} info:", img.getInfo())  # Debug print
+            # ! edit: .multiply(ee.Image.constant(255/10000)).toUint8() to .multiply(ee.Image.constant(10000 / 65536)).toUint16()
+            image_spec = image_spec.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255 / 10000)).toUint8()
+            self.batch_spec = ee.Image(image_spec).clip(self.region).rename(*[b for b in self.final_spec_bands])
 
-################################### Main function
+            # If pansharpen, same proces for panchromatic band
+            if self.pan:
+                image_pan = image.select(self.final_pan_bands)
+                if self.topocorrection:
+                    image_pan = image_pan.map(TerrainCorrection(self.scale_adj,len(self.final_pan_bands)))
+                    # ! edit: .multiply(ee.Image.constant(255)).toUint8() to .multiply(ee.Image.constant(10000 / 65536)).toUint16()
+                    image_pan = image_pan.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255)).toUint8()
+                    self.batch_pan = ee.Image(image_pan).clip(self.region).rename(*[b for b in self.final_pan_bands])
+            else:
+                self.batch_pan = None
+        else:
+            if self.topocorrection:
+                image_spec = image_spec.map(TerrainCorrection(self.scale,len(self.final_spec_bands)))
+            # ! edit: .multiply(ee.Image.constant(255/10000)).toUint8() to .multiply(ee.Image.constant(10000 / 65536)).toUint16()
+            image_spec = image_spec.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255 / 10000)).toUint8()
+            self.batch_spec = ee.Image(image_spec).clip(self.region).rename(*[b for b in self.final_spec_bands])
+
+            # If pansharpen, same proces for panchromatic band
+            if self.pan:
+                image_pan = image.select(self.final_pan_bands)
+                if self.topocorrection:
+                    image_pan = image_pan.map(TerrainCorrection(self.scale_adj,len(self.final_pan_bands)))
+                    # ! edit: .multiply(ee.Image.constant(255)).toUint8() to .multiply(ee.Image.constant(10000 / 65536)).toUint16()
+                    image_pan = image_pan.reduce(ee.Reducer.firstNonNull()).multiply(ee.Image.constant(255)).toUint8()
+                    self.batch_pan = ee.Image(image_pan).clip(self.region).rename(*[b for b in self.final_pan_bands])
+            else:
+                self.batch_pan = None
+
+# ################################## Main function
+
+
 def main():
     import argparse
     import pandas as pd
@@ -302,6 +352,7 @@ def main():
                             'maxPixels':1e13})
     start= time()
     print('Downloading multispectral image to Drive...')
+
     export_image_toDrive.start()
     while export_image_toDrive.active():
         sleep(1)
@@ -344,5 +395,6 @@ def main():
     log.close()
     print('Total time: {0} sec\n'.format(time_overall))
 
-if __name__=="__main__":
-  main()
+
+if __name__ == "__main__":
+    main()
