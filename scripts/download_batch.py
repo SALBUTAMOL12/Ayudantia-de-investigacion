@@ -48,31 +48,27 @@ def keepClear(region,sat):
     '''
     def keepClear_child(image):
         # Select FMASK QA band and select bits associated to clouds and clouds cover
-        im = ee.Image(image)
-        qa = im.select('QA_PIXEL')
-
-        qa_clouds = extractQABits(qa, 8, 9)
-
-        qa_cloudsShadows = extractQABits(qa, 10, 11)
-
+        im  = ee.Image(image)
+        qa  = im.select('QA_PIXEL')
+        qa_clouds            = extractQABits(qa,8,9)
+        qa_cloudsShadows     = extractQABits(qa,10,11)
         # Select Saturation QA band and select bite associated to saturation
         qa2 = im.select('QA_RADSAT')
-        if sat == 'L8':
-            qa_saturation = extractQABits(qa2, 1, 3)
+        if sat=='L8':
+            qa_saturation        = extractQABits(qa2,1,3)
         else:
-            qa_saturation = extractQABits(qa2, 0, 2)
+            qa_saturation        = extractQABits(qa2,0,2)
         # Create mask where valid pixels have low confidence of clound and clound shadow and are not saturated
-        mask = qa_clouds.lte(1).And(qa_cloudsShadows.lte(1)).And(qa_saturation.eq(0))
-
-        if sat =='L8':
+        mask                 = qa_clouds.lte(1).And(qa_cloudsShadows.lte(1)).And(qa_saturation.eq(0))
+        if sat=='L8':
             # Cirrus clounds and terrain oclussion in landsat 8
-            qa_cirrus = extractQABits(qa, 14, 15)
-            qa_terrain = extractQABits(qa2, 11, 11)
-            mask = mask.And(qa_cirrus.lte(1)).And(qa_terrain.eq(0))
-        # Calculate fraction of valid pixels in the region and return image with QI property with fraction of valid pixels
-        valid = mask.reduceRegion(ee.Reducer.sum(), region).get('QA_PIXEL')
-        tot = mask.reduceRegion(ee.Reducer.count(), region).get('QA_PIXEL')
-        return im.updateMask(mask).copyProperties(im).set({'QI': ee.Number(valid).divide(tot)})
+            qa_cirrus  = extractQABits(qa,14,15)
+            qa_terrain = extractQABits(qa2,11,11)
+            mask       = mask.And(qa_cirrus.lte(1)).And(qa_terrain.eq(0))
+        # Claculate fraction of valid pixels in the region and return image with QI property with fraction of valid pixels
+        valid = mask.reduceRegion(ee.Reducer.sum(),region).get('QA_PIXEL')
+        tot   = mask.reduceRegion(ee.Reducer.count(),region).get('QA_PIXEL')
+        return im.updateMask(mask).copyProperties(im).set({'QI':ee.Number(valid).divide(tot)})
     return keepClear_child
 
 def extractQABits(qaBand, bitStart, bitEnd):
@@ -155,12 +151,8 @@ def makeName(s):
 # Main class that create image from sensor
 class downloadImagery():
     def __init__(self,folder,year,sensor,size,topocorrection=True):
-
-        # ! changes: 'LANDSAT/LC08/C02/T2_SR' to 'LANDSAT/LC08/C02/T2_L2'
-        # ! changes: 'LANDSAT/LC08/C02/T1_SR' to 'LANDSAT/LC08/C02/T1_L2'
-
         collections = {'L5':{'SR':['LANDSAT/LT05/C02/T1_SR','LANDSAT/LT05/C02/T2_SR'],'TOA':['LANDSAT/LT05/C02/T1_TOA','LANDSAT/LT05/C02/T2_TOA']},
-                       'L7':{'SR':['LANDSAT/LE07/C02/T1_L2','LANDSAT/LE07/C02/T2_L2'],'TOA':['LANDSAT/LE07/C02/T1_TOA','LANDSAT/LE07/C02/T2_TOA']},
+                       'L7':{'SR':['LANDSAT/LE07/C02/T1_SR','LANDSAT/LE07/C02/T2_SR'],'TOA':['LANDSAT/LE07/C02/T1_TOA','LANDSAT/LE07/C02/T2_TOA']},
                        'L8':{'SR':['LANDSAT/LC08/C02/T1_L2','LANDSAT/LC08/C02/T2_L2'],'TOA':['LANDSAT/LC08/C02/T1_TOA','LANDSAT/LC08/C02/T2_TOA']},
                        }
         final_bands        = {'L5':[['SR_B1','SR_B2','SR_B3','SR_B4'],
@@ -216,7 +208,7 @@ class downloadImagery():
             toa_coll = toa_collection()
             # print("TOA collection size:", toa_coll.size().getInfo())  # ! Debug print
             pan = toa_coll.filter(ee.Filter.eq('LANDSAT_PRODUCT_ID',img.get('LANDSAT_ID'))).select(['B8']).first()
-            return ee.Algorithms.If(pan, img.addBands(pan), img) 
+            return ee.Algorithms.If(pan, img.addBands(pan), img)
         #######################################
 
         # Collect SR imagery
