@@ -381,3 +381,10 @@ TSWLatexianTemp*
 
 # standalone packages
 *.sta
+
+# ---- eii project data layout (populated by configure_data.py) ----
+/data/A_raw
+/data/B_inter
+/overleaf
+/.temp
+*.log

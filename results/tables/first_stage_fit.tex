@@ -1,0 +1,17 @@
+\begin{tabular}{llcccc}
+\toprule
+Year & First stage & $k$ & $R^2$ train & $R^2$ held-out comunas & $\sigma_\varepsilon$ \\
+\midrule
+1992 & OLS, Agostini variable list (ELL) & 32 & 0.465 & 0.493 & 0.682 \\
+1992 & LASSO, all shared variables & 78 & 0.602 & 0.629 & 0.592 \\
+1992 & Gradient boosting, all shared variables & 94 & 0.689 & 0.649 & 0.528 \\
+1992 & LASSO, core set common to all censuses & 76 & 0.598 & 0.625 & 0.595 \\
+2017 & OLS, Agostini variable list (ELL) & 28 & 0.435 & 0.376 & 0.667 \\
+2017 & LASSO, all shared variables & 61 & 0.586 & 0.557 & 0.573 \\
+2017 & Gradient boosting, all shared variables & 71 & 0.660 & 0.582 & 0.532 \\
+2024 & OLS, Agostini variable list (ELL) & 34 & 0.442 & 0.395 & 0.655 \\
+2024 & LASSO, all shared variables & 86 & 0.598 & 0.566 & 0.558 \\
+2024 & Gradient boosting, all shared variables & 101 & 0.672 & 0.595 & 0.514 \\
+2024 & LASSO, core set common to all censuses & 71 & 0.591 & 0.562 & 0.562 \\
+\bottomrule
+\end{tabular}
